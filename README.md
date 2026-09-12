@@ -15,8 +15,6 @@ Biological computing substrates, such as 3D cortical organoids (Organoid Intelli
 2. **Hardware-in-the-Loop (HIL) Simulator (Python):** Emulates the deterministic AXI4-Stream data transfer between the biological plant and the digital hardware.
 3. **Deterministic Air-Gap & Safe-Mode Logic (SystemVerilog):** The synthesizable RTL code enforcing the sub-25 $\mu$s stimulation window, the 2 ms biological refractory interlock, and the PCA-Mahalanobis anomaly tripwire.
 
----
-
 ## Repository Structure
 
 ```text
@@ -31,6 +29,8 @@ biohybrid-zerotrust/
 │   ├── bio_zero_trust_top.sv     # Top-level integration of security primitives
 │   └── air_gap_fsm.sv            # Finite State Machine for hardware air-gapping
 │
+├── requirements.txt              # Python dependencies
+└── README.md
 
 
 
@@ -56,12 +56,11 @@ The `threat_injector.py` module evaluates the architecture against three distinc
 
 Clone the repository and install the required Python packages:
 
-```bash
 git clone [https://github.com/yourusername/BioHybrid-ZeroTrust.git](https://github.com/yourusername/BioHybrid-ZeroTrust.git)
 cd BioHybrid-ZeroTrust
 pip install -r requirements.txt
 
-```
+
 
 *(The `requirements.txt` includes `numpy` and `scipy`)*
 
@@ -119,5 +118,3 @@ This project is licensed under the MIT License - see the [LICENSE](https://www.g
 ```
 
 ```
-├── requirements.txt              # Python dependencies
-└── README.md
