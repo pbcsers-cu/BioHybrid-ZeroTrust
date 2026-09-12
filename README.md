@@ -112,9 +112,7 @@ If you use this framework or code in your research, please cite our paper:
 
 ```
 
-## License
 
-This project is licensed under the MIT License - see the [LICENSE](https://www.google.com/search?q=LICENSE) file for details.
 
 ```
 
