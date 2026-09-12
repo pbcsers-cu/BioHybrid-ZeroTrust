@@ -1,0 +1,5 @@
+# Fundamental package for numerical computation, signal generation, and array manipulation
+numpy>=1.21.0
+
+# Required for loading .mat files from the CRCNS electrophysiological dataset
+scipy>=1.7.0
