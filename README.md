@@ -33,7 +33,7 @@ biohybrid-zerotrust/
 └── README.md
 
 
-
+```
 
 ## Threat Models Implemented
 
