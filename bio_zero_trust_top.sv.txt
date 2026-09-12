@@ -1,0 +1,81 @@
+`timescale 1ns / 1ps
+
+module bio_zero_trust_top #(
+    parameter DATA_WIDTH = 16,
+    parameter CHANNELS = 60,
+    parameter REFRACTORY_CYCLES = 400_000, // 2 ms @ 200 MHz
+    parameter MAX_PULSE_CYCLES = 5_000     // 25 us @ 200 MHz
+)(
+    input  wire clk,
+    input  wire rst_n,
+    
+    // AXI4-Stream Neural Data Input (from Plant Emulator/AFE)
+    input  wire [DATA_WIDTH*CHANNELS-1:0] s_axis_neural_tdata,
+    input  wire s_axis_neural_tvalid,
+    
+    // Stimulus Command from Untrusted RTOS (Zone 2)
+    input  wire [255:0] stimulus_cmd,
+    input  wire [127:0] mac_tag,
+    input  wire cmd_valid,
+    
+    // Physical Control Outputs (Trust Boundary B)
+    output wire mux_enable,        // Drives solid-state analog multiplexer
+    output wire safe_mode_active,  // Triggers analog PID life-support fallback
+    output wire alarm_trigger
+);
+
+    // Internal Signals
+    wire anomaly_detected;
+    wire auth_valid;
+    wire [31:0] mahalanobis_d2;
+    wire [31:0] chi_square_threshold = 32'd98; // D^2 > 98.4 trigger
+    
+    // -----------------------------------------------------------------
+    // 1. Cryptographic Neural Biomarker (PCA-Mahalanobis Engine)
+    // -----------------------------------------------------------------
+    pca_mahalanobis_engine #(
+        .CHANNELS(CHANNELS),
+        .K_COMPONENTS(8)
+    ) anomaly_detector_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .neural_data(s_axis_neural_tdata),
+        .data_valid(s_axis_neural_tvalid),
+        .d2_score(mahalanobis_d2),
+        .anomaly_trigger(anomaly_detected)
+    );
+    
+    // Trigger anomaly if D^2 exceeds strict confidence interval threshold
+    assign anomaly_detected = (mahalanobis_d2 > chi_square_threshold);
+
+    // -----------------------------------------------------------------
+    // 2. Hardware AES-GCM Authenticator
+    // -----------------------------------------------------------------
+    aes_gcm_core crypto_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .ciphertext(stimulus_cmd),
+        .mac_tag(mac_tag),
+        .valid_in(cmd_valid),
+        .auth_success(auth_valid)
+    );
+
+    // -----------------------------------------------------------------
+    // 3. Deterministic Air-Gap & Safe-Mode FSM Interlock
+    // -----------------------------------------------------------------
+    air_gap_fsm #(
+        .REFRACTORY_CYCLES(REFRACTORY_CYCLES),
+        .MAX_PULSE_CYCLES(MAX_PULSE_CYCLES)
+    ) fsm_interlock_inst (
+        .clk(clk),
+        .rst_n(rst_n),
+        .cmd_req(cmd_valid),
+        .auth_valid(auth_valid),
+        .anomaly_detected(anomaly_detected),
+        .mux_en(mux_enable),
+        .safe_mode(safe_mode_active)
+    );
+
+    assign alarm_trigger = safe_mode_active;
+
+endmodule

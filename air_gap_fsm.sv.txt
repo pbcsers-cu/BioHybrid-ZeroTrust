@@ -1,0 +1,108 @@
+`timescale 1ns / 1ps
+
+module air_gap_fsm #(
+    parameter REFRACTORY_CYCLES = 400_000, 
+    parameter MAX_PULSE_CYCLES = 5_000     
+)(
+    input  wire clk,
+    input  wire rst_n,
+    
+    // Control inputs
+    input  wire cmd_req,
+    input  wire auth_valid,
+    input  wire anomaly_detected,
+    
+    // Outputs
+    output reg  mux_en,
+    output reg  safe_mode
+);
+
+    // State Encoding (Matches Manuscript FSM Diagram)
+    typedef enum logic [2:0] {
+        S0_SECURE_BOOT    = 3'b000,
+        S1_ACTIVE_INF     = 3'b001,
+        S2_PULSE_EVAL     = 3'b010,
+        S3_STIMULATION    = 3'b011,
+        S4_SAFE_MODE      = 3'b100
+    } state_t;
+    
+    state_t current_state, next_state;
+    
+    // Timers
+    reg [31:0] refractory_timer;
+    reg [31:0] pulse_timer;
+    
+    // State Transition Logic
+    always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+            current_state <= S0_SECURE_BOOT;
+            refractory_timer <= 0;
+            pulse_timer <= 0;
+        end else begin
+            current_state <= next_state;
+            
+            // Timer updates
+            if (current_state == S3_STIMULATION) begin
+                pulse_timer <= pulse_timer + 1;
+                refractory_timer <= 0; // Reset refractory window during pulse
+            end else begin
+                pulse_timer <= 0;
+                if (refractory_timer < 32'hFFFFFFFF) begin
+                    refractory_timer <= refractory_timer + 1;
+                end
+            end
+            
+            // Irreversible Safe-Mode Latch (Hardware Severance)
+            if (anomaly_detected && current_state != S4_SAFE_MODE) begin
+                current_state <= S4_SAFE_MODE;
+            end
+        end
+    end
+
+    // Next State & Output Combinational Logic
+    always_comb begin
+        // Default safe assignments (High-Z Isolation)
+        next_state = current_state;
+        mux_en = 1'b0;  
+        safe_mode = 1'b0;
+        
+        case (current_state)
+            S0_SECURE_BOOT: begin
+                // Boot complete -> Transition to default read-only state
+                next_state = S1_ACTIVE_INF; 
+            end
+            
+            S1_ACTIVE_INF: begin
+                if (cmd_req) begin
+                    next_state = S2_PULSE_EVAL;
+                end
+            end
+            
+            S2_PULSE_EVAL: begin
+                // Boolean Interlock: Cryptographically valid AND biologically safe
+                if (auth_valid && (refractory_timer >= REFRACTORY_CYCLES)) begin
+                    next_state = S3_STIMULATION;
+                end else begin
+                    next_state = S1_ACTIVE_INF; // Drop malicious/invalid packet
+                end
+            end
+            
+            S3_STIMULATION: begin
+                mux_en = 1'b1; // Momentarily close analog MUX
+                
+                // Truncate pulse if it exceeds deterministic microsecond window
+                if (pulse_timer >= MAX_PULSE_CYCLES) begin
+                    next_state = S1_ACTIVE_INF;
+                end
+            end
+            
+            S4_SAFE_MODE: begin
+                mux_en = 1'b0;    // Permanent Air-Gap Latch
+                safe_mode = 1'b1; // Trigger Analog Homeostasis Preservation
+                next_state = S4_SAFE_MODE; // Terminal state (requires physical reset)
+            end
+            
+            default: next_state = S0_SECURE_BOOT;
+        endcase
+    end
+endmodule
