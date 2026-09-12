@@ -56,7 +56,7 @@ The `threat_injector.py` module evaluates the architecture against three distinc
 
 Clone the repository and install the required Python packages:
 
-git clone [https://github.com/yourusername/BioHybrid-ZeroTrust.git](https://github.com/yourusername/BioHybrid-ZeroTrust.git)
+git clone [https://github.com/yourusername/BioHybrid-ZeroTrust.git](https://github.com/pbcsers-cu/BioHybrid-ZeroTrust.git)
 cd BioHybrid-ZeroTrust
 pip install -r requirements.txt
 
