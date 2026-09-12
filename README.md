@@ -30,6 +30,7 @@ biohybrid-zerotrust/
 │   └── air_gap_fsm.sv            # Finite State Machine for hardware air-gapping
 │
 ├── requirements.txt              # Python dependencies
+├── install_requirements.sh       # Install requirements
 └── README.md
 
 
